@@ -1,0 +1,88 @@
+#include <stdio.h> 
+#include <sys/shm.h> 
+#include <sys/stat.h>
+#include <stdlib.h> 
+#include <wiringPi.h> 
+
+struct data
+{
+
+	int a;
+	int sequence_num;
+};
+
+int main () 
+{
+
+
+  int segment_id; 
+  data* shared_memory; 
+  struct shmid_ds shmbuffer; 
+  int segment_size; 
+  const int shared_segment_size = 0x6400; 
+	int smhkey=33222;
+  int pwm_val = 10;
+  int pwm_max = 255;
+  int counter = 0;
+  
+  /* Allocate a shared memory segment.  */ 
+  segment_id = shmget (smhkey, shared_segment_size,IPC_CREAT | 0666); 
+  /* Attach the shared memory segment.  */ 
+  shared_memory = (data*) shmat (segment_id, 0, 0); 
+  printf ("shared memory attached at address %p\n", shared_memory); 
+  /* Determine the segment's size. */ 
+  shmctl (segment_id, IPC_STAT, &shmbuffer); 
+  segment_size  =               shmbuffer.shm_segsz; 
+  printf ("segment size: %d\n", segment_size); 
+  /* Write a string to the shared memory segment.  */ 
+  //sprintf (shared_memory, "test!!!!."); 
+  
+  /* Print out the string from shared memory.  */ 
+
+wiringPiSetupGpio () ;
+pinMode (6, OUTPUT) ;
+
+int frame=0;
+while(1)
+{
+
+  //for (;;)
+  //{
+   if (counter < pwm_val){ 
+    digitalWrite (6, HIGH) ; //delay (500) ;
+   }
+   if (counter >= pwm_val){
+      digitalWrite (6,  LOW) ; //delay (255-50) ;
+   }
+  if (counter == pwm_max){
+      counter = 0;
+  }
+    counter = counter + 1;
+  //}
+
+
+data s=*shared_memory;
+
+if(s.sequence_num!=frame)
+{
+  printf("data received %d\n\r",s.a);
+  if  (s.a  == 259 ) { //up
+    pwm_val = pwm_val + 50;
+  }
+  if (s.a == 258) { //down
+    pwm_val = pwm_val - 50;
+  }
+
+
+frame=s.sequence_num;
+}
+
+}
+  /* Detach the shared memory segment.  */ 
+  shmdt (shared_memory); 
+ 
+  /* Deallocate the shared memory segment.  */ 
+ // shmctl (segment_id, IPC_RMID, 0); 
+ 
+  return 0; 
+} 
